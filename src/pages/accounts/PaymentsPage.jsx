@@ -4,17 +4,19 @@ import { useCurrency } from '../../contexts/CurrencyContext';
 import { supabase } from '../../supabaseClient';
 import { paymentsAPI } from '../../utils/accountsAPI';
 import { billingAccountsIntegration } from '../../utils/billingAccountsIntegration';
+import { getSuppliers } from '../../utils/supplierUtils';
 
 const PaymentsPage = () => {
   const { formatCurrency } = useCurrency();
   const [loading, setLoading] = useState(true);
-  const [payments, setPayments] = useState([]);
+  const [payments, setPayments] = useState([]); // Only real payments from API
   const [filteredPayments, setFilteredPayments] = useState([]);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [billingSummary, setBillingSummary] = useState(null);
+  const [suppliers, setSuppliers] = useState([]);
   const [newPayment, setNewPayment] = useState({
     payment_date: new Date().toISOString().split('T')[0],
     payment_type: 'received',
@@ -45,7 +47,18 @@ const PaymentsPage = () => {
   useEffect(() => {
     fetchPayments();
     fetchBillingSummary();
+    fetchSuppliers();
   }, []);
+
+  const fetchSuppliers = async () => {
+    try {
+      const { data } = await getSuppliers({ activeOnly: true });
+      setSuppliers(data || []);
+    } catch (error) {
+      setSuppliers([]);
+      console.error('Error fetching suppliers:', error);
+    }
+  };
 
   const fetchBillingSummary = async () => {
     try {
@@ -63,13 +76,12 @@ const PaymentsPage = () => {
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      
-      // Fetch real payments data
+      // Fetch only real payments data from API
       const paymentsData = await paymentsAPI.getPayments();
-      setPayments(paymentsData);
-      
+      setPayments(Array.isArray(paymentsData) ? paymentsData : []);
     } catch (error) {
       console.error('Error fetching payments:', error);
+      setPayments([]);
     } finally {
       setLoading(false);
     }
@@ -77,12 +89,16 @@ const PaymentsPage = () => {
 
   const filterPayments = () => {
     let filtered = payments;
-    
-    // Filter by type
-    if (filter !== 'all') {
+    if (filter === 'received' || filter === 'sent') {
       filtered = filtered.filter(payment => payment.payment_type === filter);
+    } else if (filter === 'to_suppliers') {
+      // Only payments sent to suppliers
+      const supplierNames = suppliers.map(s => s.name?.toLowerCase());
+      filtered = filtered.filter(payment =>
+        payment.payment_type === 'sent' &&
+        supplierNames.includes(payment.customer_vendor_name?.toLowerCase())
+      );
     }
-    
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(payment =>
@@ -91,10 +107,8 @@ const PaymentsPage = () => {
         payment.notes.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
     // Sort by date (newest first)
     filtered.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date));
-    
     setFilteredPayments(filtered);
   };
 
@@ -290,6 +304,7 @@ const PaymentsPage = () => {
               <option value="all">All Payments</option>
               <option value="received">Received</option>
               <option value="sent">Sent</option>
+              <option value="to_suppliers">Payments to Suppliers</option>
             </select>
           </div>
         </div>
@@ -361,13 +376,13 @@ const PaymentsPage = () => {
                       <div className="flex items-center space-x-2">
                         <span className="text-lg">{getMethodIcon(payment.method)}</span>
                         <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                          {payment.method.replace('_', ' ')}
+                          {(payment.method || '').replace('_', ' ')}
                         </span>
                       </div>
                     </td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(payment.status)}`}>
-                        {payment.status.toUpperCase()}
+                        {(payment.status || '').toUpperCase()}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
@@ -590,7 +605,7 @@ const PaymentsPage = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-lg">{getMethodIcon(selectedPayment.method)}</span>
                   <span className="text-gray-900 dark:text-white capitalize">
-                    {selectedPayment.method.replace('_', ' ')}
+                    {(selectedPayment.method || '').replace('_', ' ')}
                   </span>
                 </div>
               </div>
@@ -598,7 +613,7 @@ const PaymentsPage = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                 <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(selectedPayment.status)}`}>
-                  {selectedPayment.status.toUpperCase()}
+                  {(selectedPayment.status || '').toUpperCase()}
                 </span>
               </div>
               
