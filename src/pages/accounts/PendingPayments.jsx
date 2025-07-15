@@ -1,0 +1,569 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getPendingAmountsBreakdown } from '../../utils/billingAccountsIntegration';
+import { supabase } from '../../supabaseClient';
+import PendingInvoiceDetail from '../../components/PendingInvoiceDetail';
+import Modal from '../../components/Modal';
+import { useNavigate } from 'react-router-dom';
+
+const PendingPayments = () => {
+  const navigate = useNavigate();
+  const [pendingData, setPendingData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showInvoiceListModal, setShowInvoiceListModal] = useState(false);
+  const [invoiceListType, setInvoiceListType] = useState('all'); // 'all', 'pending', or 'partial'
+  const [sortBy, setSortBy] = useState('date');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortByAmount, setSortByAmount] = useState('desc');
+
+  useEffect(() => {
+    fetchPendingPayments();
+  }, []);
+
+  const fetchPendingPayments = async () => {
+    try {
+      setLoading(true);
+      const data = await getPendingAmountsBreakdown();
+      setPendingData(data);
+    } catch (error) {
+      console.error('Error fetching pending payments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInvoiceClick = async (invoice) => {
+    try {
+      // Fetch detailed invoice data with customer information
+      const { data: detailedInvoice, error } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          customers (
+            id, name, phone, email, address
+          ),
+          invoice_items (
+            id, product_id, variant_id, quantity, unit_price, discount_percent, 
+            serial_number, warranty_months,
+            products (name, sku),
+            product_variants (attribute_name, value)
+          )
+        `)
+        .eq('id', invoice.id)
+        .single();
+
+      if (error) throw error;
+
+      setSelectedInvoice(detailedInvoice);
+      setShowDetailModal(true);
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+      alert('Error loading invoice details');
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const getSortedInvoices = () => {
+    if (!pendingData) return [];
+    
+    let invoices;
+    
+    // Filter by invoice type
+    if (invoiceListType === 'pending') {
+      invoices = [...pendingData.pendingInvoices];
+    } else if (invoiceListType === 'partial') {
+      invoices = [...pendingData.partialInvoices];
+    } else {
+      // 'all' - show both types
+      invoices = [
+        ...pendingData.pendingInvoices,
+        ...pendingData.partialInvoices
+      ];
+    }
+
+    return invoices.sort((a, b) => {
+      if (sortBy === 'date') {
+        const dateA = new Date(a.invoice_date);
+        const dateB = new Date(b.invoice_date);
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      } else if (sortBy === 'amount') {
+        const amountA = a.pending_amount;
+        const amountB = b.pending_amount;
+        return sortByAmount === 'asc' ? amountA - amountB : amountB - amountA;
+      }
+      return 0;
+    });
+  };
+
+  const handleDateSort = (order) => {
+    setSortBy('date');
+    setSortOrder(order);
+  };
+
+  const handleAmountSort = (order) => {
+    setSortBy('amount');
+    setSortByAmount(order);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const sortedInvoices = getSortedInvoices();
+
+  return (
+    <motion.div
+      className="space-y-6 p-4 md:p-6 lg:p-8"
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+    >
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Pending Payments</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage and track all pending invoices and partial payments
+            </p>
+          </div>
+          <button
+            onClick={fetchPendingPayments}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg px-4 py-2 text-sm flex items-center transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Info Text */}
+      <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+        <p>Click on any card below to see a list of those invoices. Click on any invoice to view its detailed information.</p>
+      </div>
+      
+      {/* Summary Cards */}
+      {pendingData && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div 
+            className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg p-6 border border-yellow-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              setInvoiceListType('pending');
+              setShowInvoiceListModal(true);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-yellow-600">Fully Pending</p>
+                <p className="text-2xl font-bold text-yellow-700 mt-1">
+                  {formatCurrency(pendingData.totals.pendingTotal)}
+                </p>
+                <p className="text-xs text-yellow-600 mt-1">
+                  {pendingData.pendingInvoices.length} invoices
+                </p>
+              </div>
+              <div className="text-3xl">⏳</div>
+            </div>
+          </div>
+          
+          <div 
+            className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              setInvoiceListType('partial');
+              setShowInvoiceListModal(true);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Partial Remaining</p>
+                <p className="text-2xl font-bold text-blue-700 mt-1">
+                  {formatCurrency(pendingData.totals.partialTotal)}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  {pendingData.partialInvoices.length} invoices
+                </p>
+              </div>
+              <div className="text-3xl">📋</div>
+            </div>
+          </div>
+          
+          <div 
+            className="bg-gradient-to-r from-red-50 to-red-100 rounded-lg p-6 border border-red-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => {
+              setInvoiceListType('all');
+              setShowInvoiceListModal(true);
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-600">Total Pending</p>
+                <p className="text-2xl font-bold text-red-700 mt-1">
+                  {formatCurrency(pendingData.totals.totalPending)}
+                </p>
+                <p className="text-xs text-red-600 mt-1">
+                  {sortedInvoices.length} invoices
+                </p>
+              </div>
+              <div className="text-3xl">💰</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Stats */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Payments Overview</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-500">Recent Activity</span>
+              <span className="text-lg font-semibold mt-1">
+                {sortedInvoices.length > 0 ? (
+                  `${sortedInvoices.length} invoices need attention`
+                ) : (
+                  "No pending invoices"
+                )}
+              </span>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-500">Total Pending Amount</span>
+              <span className="text-lg font-semibold text-red-600 mt-1">
+                {pendingData ? formatCurrency(pendingData.totals.totalPending) : "Loading..."}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-500">Most Recent</span>
+              <span className="text-lg font-semibold mt-1">
+                {sortedInvoices.length > 0 ? (
+                  new Date(sortedInvoices[0].invoice_date).toLocaleDateString()
+                ) : (
+                  "No recent invoices"
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-center">
+          <div className="inline-flex bg-gray-100 rounded-lg p-1">
+            <button
+              className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                sortBy === 'date' && 'bg-white shadow-sm'
+              }`}
+              onClick={() => {
+                setSortBy('date');
+                setSortOrder('desc');
+              }}
+            >
+              Sort by Date
+            </button>
+            <button
+              className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                sortBy === 'amount' && 'bg-white shadow-sm'
+              }`}
+              onClick={() => {
+                setSortBy('amount');
+                setSortByAmount('desc');
+              }}
+            >
+              Sort by Amount
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => {
+              setInvoiceListType('all');
+              setShowInvoiceListModal(true);
+            }}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            View All Invoices
+          </button>
+          <button
+            className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+            onClick={() => {
+              setInvoiceListType('pending');
+              setShowInvoiceListModal(true);
+            }}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            View Pending Invoices
+          </button>
+          <button
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => {
+              setInvoiceListType('partial');
+              setShowInvoiceListModal(true);
+            }}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+            </svg>
+            View Partial Invoices
+          </button>
+        </div>
+      </div>
+
+      {/* Invoice Detail Modal */}
+      <AnimatePresence>
+        {showDetailModal && selectedInvoice && (
+          <PendingInvoiceDetail
+            invoice={selectedInvoice}
+            onClose={() => {
+              setShowDetailModal(false);
+              setSelectedInvoice(null);
+            }}
+            onPaymentComplete={() => {
+              fetchPendingPayments();
+              setShowDetailModal(false);
+              setSelectedInvoice(null);
+            }}
+            onEditInvoice={(invoice) => {
+              // Navigate to billing page with the invoice ID to edit
+              navigate('/billing', { state: { editInvoiceId: invoice.id } });
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Invoice List Modal */}
+      <AnimatePresence>
+        {showInvoiceListModal && (
+          <Modal handleClose={() => setShowInvoiceListModal(false)} size="large">
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {invoiceListType === 'pending' 
+                      ? 'Fully Pending Invoices'
+                      : invoiceListType === 'partial'
+                        ? 'Partially Paid Invoices'
+                        : 'All Pending Invoices'
+                    }
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {invoiceListType === 'pending' 
+                      ? `${pendingData.pendingInvoices.length} invoices pending payment`
+                      : invoiceListType === 'partial'
+                        ? `${pendingData.partialInvoices.length} invoices with partial payments`
+                        : `${sortedInvoices.length} total pending invoices`
+                    }
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowInvoiceListModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Sorting Controls */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="flex flex-col md:flex-row gap-4 md:items-center">
+                  <h3 className="text-sm font-medium text-gray-700">Sort By:</h3>
+                  
+                  <div className="flex flex-wrap gap-4">
+                    {/* Date Sorting */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-700">Date:</label>
+                      <select
+                        value={sortBy === 'date' ? sortOrder : ''}
+                        onChange={(e) => handleDateSort(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select</option>
+                        <option value="desc">Newest First</option>
+                        <option value="asc">Oldest First</option>
+                      </select>
+                    </div>
+
+                    {/* Amount Sorting */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-700">Amount:</label>
+                      <select
+                        value={sortBy === 'amount' ? sortByAmount : ''}
+                        onChange={(e) => handleAmountSort(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select</option>
+                        <option value="desc">Highest First</option>
+                        <option value="asc">Lowest First</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice List */}
+              {sortedInvoices.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-6xl mb-4">🎉</div>
+                  <p className="text-gray-500 text-lg">
+                    {invoiceListType === 'pending' 
+                      ? 'No fully pending invoices found!'
+                      : invoiceListType === 'partial'
+                        ? 'No partially paid invoices found!'
+                        : 'No pending payments!'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Invoice
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Customer
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Amount Paid
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pending Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {sortedInvoices.map((invoice) => (
+                        <motion.tr
+                          key={invoice.id}
+                          whileHover={{ backgroundColor: '#f8fafc' }}
+                          className="cursor-pointer"
+                          onClick={() => {
+                            handleInvoiceClick(invoice);
+                            setShowInvoiceListModal(false);
+                          }}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                              {invoice.invoice_number}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{invoice.customer_name}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">
+                              {new Date(invoice.invoice_date).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {formatCurrency(invoice.total_amount)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {formatCurrency(invoice.amount_paid || 0)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-red-600">
+                              {formatCurrency(invoice.pending_amount)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`
+                              px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                              ${invoice.amount_paid ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}
+                            `}>
+                              {invoice.amount_paid ? 'Partial' : 'Pending'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInvoiceClick(invoice);
+                                  setShowInvoiceListModal(false);
+                                }}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="View Details"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowInvoiceListModal(false);
+                                  // Navigate directly to billing page with invoice ID for editing
+                                  navigate('/billing', { state: { editInvoiceId: invoice.id } });
+                                }}
+                                className="text-amber-600 hover:text-amber-900"
+                                title="Edit Invoice"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+export default PendingPayments;
