@@ -4,17 +4,24 @@ import { getPendingAmountsBreakdown } from '../../utils/billingAccountsIntegrati
 import { supabase } from '../../supabaseClient';
 import PendingInvoiceDetail from '../../components/PendingInvoiceDetail';
 import Modal from '../../components/Modal';
+import AssignmentModal from '../../components/AssignmentModal';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
+import { usePermissions } from '../../contexts/PermissionsContext';
 import 'react-datepicker/dist/react-datepicker.css';
 
 const PendingPayments = () => {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const [pendingData, setPendingData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showInvoiceListModal, setShowInvoiceListModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [assignmentNotes, setAssignmentNotes] = useState('');
   const [invoiceListType, setInvoiceListType] = useState('all'); // 'all', 'pending', or 'partial'
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -29,6 +36,7 @@ const PendingPayments = () => {
 
   useEffect(() => {
     fetchPendingPayments();
+    fetchAvailableUsers();
   }, []);
 
   const fetchPendingPayments = async () => {
@@ -40,6 +48,94 @@ const PendingPayments = () => {
       console.error('Error fetching pending payments:', error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const fetchAvailableUsers = async () => {
+    try {
+      // Check if the users table exists and has the expected columns
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .order('full_name', { ascending: true });
+        
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
+      
+      setAvailableUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching available users:', error);
+    }
+  };
+  
+  const handleAssignClick = (invoice) => {
+    setSelectedInvoice(invoice);
+    setSelectedUser(null);
+    setAssignmentNotes('');
+    setShowAssignModal(true);
+  };
+  
+  const handleAssignmentSubmit = async () => {
+    if (!selectedInvoice || !selectedUser) {
+      alert('Please select a user to assign the invoice to');
+      return;
+    }
+    
+    try {
+      // Check if the schema-invoice-assignments.sql has been run
+      const { data: checkData, error: checkError } = await supabase
+        .from('invoices')
+        .select('assigned_user_id')
+        .limit(1);
+        
+      if (checkError || !checkData) {
+        alert('Invoice assignment feature is not set up correctly. Please run schema-invoice-assignments.sql first.');
+        return;
+      }
+      
+      // Try to use the RPC function first
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('assign_invoice', {
+          p_invoice_id: selectedInvoice.id,
+          p_user_id: selectedUser,
+          p_notes: assignmentNotes || null
+        });
+        
+        if (!rpcError) {
+          // Success! Refresh the data
+          fetchPendingPayments();
+          setShowAssignModal(false);
+          navigate('/accounts/assigned-pending');
+          return;
+        }
+      } catch (rpcError) {
+        console.error('RPC function not available, falling back to direct update:', rpcError);
+      }
+      
+      // Fallback: direct update if RPC doesn't work
+      const { data, error } = await supabase
+        .from('invoices')
+        .update({
+          assigned_user_id: selectedUser,
+          assignment_date: new Date().toISOString(),
+          assignment_notes: assignmentNotes || null,
+          collection_status: 'not_started',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedInvoice.id);
+        
+      if (error) throw error;
+      
+      // Refresh data and close modal
+      fetchPendingPayments();
+      setShowAssignModal(false);
+      navigate('/accounts/assigned-pending');
+      
+    } catch (error) {
+      console.error('Error assigning invoice:', error);
+      alert('Error assigning invoice. Please make sure schema-invoice-assignments.sql has been run.');
     }
   };
 
@@ -231,15 +327,26 @@ const PendingPayments = () => {
               Manage and track all pending invoices and partial payments
             </p>
           </div>
-          <button
-            onClick={fetchPendingPayments}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg px-4 py-2 text-sm flex items-center transition-colors shadow-sm"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => navigate('/accounts/assigned-pending')}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg px-4 py-2 text-sm flex items-center transition-colors shadow-sm"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Assigned Invoices
+            </button>
+            <button
+              onClick={fetchPendingPayments}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg px-4 py-2 text-sm flex items-center transition-colors shadow-sm"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -549,6 +656,19 @@ const PendingPayments = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Assignment Modal */}
+      <AssignmentModal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        selectedInvoice={selectedInvoice}
+        availableUsers={availableUsers}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        assignmentNotes={assignmentNotes}
+        setAssignmentNotes={setAssignmentNotes}
+        onSubmit={handleAssignmentSubmit}
+      />
 
       {/* Invoice List Modal */}
       <AnimatePresence>
@@ -931,6 +1051,19 @@ const PendingPayments = () => {
                               >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAssignClick(invoice);
+                                  setShowInvoiceListModal(false);
+                                }}
+                                className="text-purple-600 hover:text-purple-900"
+                                title="Assign for Collection"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
                               </button>
                             </div>

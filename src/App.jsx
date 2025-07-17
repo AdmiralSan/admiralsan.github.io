@@ -32,6 +32,7 @@ import AccountsOverview from './pages/accounts/AccountsOverview';
 import DailyLedger from './pages/accounts/DailyLedger';
 import PaymentsPage from './pages/accounts/PaymentsPage';
 import PendingPayments from './pages/accounts/PendingPayments';
+import AssignedPendingPayments from './pages/accounts/AssignedPendingPayments';
 import ExpensesPage from './pages/accounts/ExpensesPage';
 import AccountsReports from './pages/accounts/AccountsReports';
 import AccountsSettings from './pages/accounts/AccountsSettings';
@@ -260,6 +261,7 @@ function AppContent() {
               <Route path="daily-ledger" element={<DailyLedger />} />
               <Route path="payments" element={<PaymentsPage />} />
               <Route path="pending" element={<PendingPayments />} />
+              <Route path="assigned-pending" element={<AssignedPendingPayments />} />
               <Route path="expenses" element={<ExpensesPage />} />
               <Route path="reports" element={<AccountsReports />} />
               <Route path="settings" element={<AccountsSettings />} />

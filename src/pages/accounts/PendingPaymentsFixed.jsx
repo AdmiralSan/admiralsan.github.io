@@ -87,45 +87,118 @@ const PendingPayments = () => {
     return d.toISOString().split('T')[0];
   };
   
-  // Function to download the current filtered invoices as CSV
-  const downloadCSV = () => {
+  // Function to download the current filtered invoices as CSV with detailed information
+  const downloadCSV = async () => {
     if (!sortedInvoices || sortedInvoices.length === 0) {
       alert('No data to download');
       return;
     }
     
-    // Generate CSV header
-    const headers = ['Invoice Number', 'Customer Name', 'Invoice Date', 'Total Amount', 
-                    'Amount Paid', 'Pending Amount', 'Status'];
-    
-    // Generate CSV rows
-    const csvRows = [
-      headers.join(','),
-      ...sortedInvoices.map(invoice => [
-        invoice.invoice_number,
-        `"${invoice.customer_name.replace(/"/g, '""')}"`, // Escape quotes in customer names
-        formatDateForCSV(invoice.invoice_date),
-        invoice.total_amount,
-        invoice.amount_paid || 0,
-        invoice.pending_amount,
-        invoice.amount_paid ? 'Partial' : 'Pending'
-      ].join(','))
-    ];
-    
-    // Create a CSV blob and download it
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    // Create download link and click it
-    const link = document.createElement('a');
-    const fileName = getCSVFileName();
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      // Show loading or processing indicator
+      setLoading(true);
+      
+      // For each invoice, fetch detailed information including payment history and products
+      const detailedInvoices = await Promise.all(
+        sortedInvoices.map(async (invoice) => {
+          // Fetch detailed invoice data with customer information and items
+          const { data: detailedInvoice, error: invoiceError } = await supabase
+            .from('invoices')
+            .select(`
+              *,
+              customers (
+                id, name, phone, email, address
+              ),
+              invoice_items (
+                id, product_id, variant_id, quantity, unit_price, discount_percent, 
+                serial_number, warranty_months,
+                products (name, sku, description),
+                product_variants (attribute_name, value)
+              )
+            `)
+            .eq('id', invoice.id)
+            .single();
+            
+          if (invoiceError) {
+            console.error('Error fetching invoice details:', invoiceError);
+            return invoice; // Return basic invoice if detailed fetch fails
+          }
+          
+          // Fetch payment history for the invoice
+          const { data: payments, error: paymentsError } = await supabase
+            .from('payments')
+            .select('*')
+            .eq('invoice_id', invoice.id)
+            .order('payment_date', { ascending: false });
+            
+          if (paymentsError) {
+            console.error('Error fetching payment history:', paymentsError);
+          }
+          
+          return {
+            ...detailedInvoice,
+            payments: payments || []
+          };
+        })
+      );
+      
+      // Generate CSV header
+      const headers = [
+        'Invoice Number', 'Customer Name', 'Customer Phone', 'Customer Email', 'Invoice Date', 
+        'Total Amount', 'Amount Paid', 'Pending Amount', 'Status', 
+        'Product Details', 'Payment History'
+      ];
+      
+      // Generate CSV rows
+      const csvRows = [
+        headers.join(','),
+        ...detailedInvoices.map(invoice => {
+          // Format product details
+          const productDetails = invoice.invoice_items?.map(item => {
+            return `${item.products?.name || 'Unknown Product'} (${item.quantity}x${item.unit_price}${item.discount_percent > 0 ? ` -${item.discount_percent}%` : ''})${item.serial_number ? ` S/N:${item.serial_number}` : ''}`;
+          }).join('; ') || 'No products';
+          
+          // Format payment history
+          const paymentHistory = invoice.payments?.map(payment => {
+            return `${formatDateForCSV(payment.payment_date)}: ${payment.amount} via ${payment.payment_method || 'Unknown'}`;
+          }).join('; ') || 'No payment records';
+          
+          return [
+            invoice.invoice_number,
+            `"${(invoice.customers?.name || invoice.customer_name || 'Unknown').replace(/"/g, '""')}"`, // Escape quotes in customer names
+            `"${(invoice.customers?.phone || '').replace(/"/g, '""')}"`,
+            `"${(invoice.customers?.email || '').replace(/"/g, '""')}"`,
+            formatDateForCSV(invoice.invoice_date),
+            invoice.total_amount,
+            invoice.amount_paid || 0,
+            (invoice.total_amount - (invoice.amount_paid || 0)),
+            invoice.payment_status,
+            `"${productDetails.replace(/"/g, '""')}"`,
+            `"${paymentHistory.replace(/"/g, '""')}"`
+          ].join(',');
+        })
+      ];
+      
+      // Create a CSV blob and download it
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create download link and click it
+      const link = document.createElement('a');
+      const fileName = getCSVFileName();
+      link.setAttribute('href', url);
+      link.setAttribute('download', fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error generating detailed CSV:', error);
+      alert('Error generating detailed report. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Generate appropriate filename based on current filters
@@ -451,7 +524,7 @@ const PendingPayments = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download List
+                {loading ? 'Preparing...' : 'Download Detailed List'}
               </button>
             </div>
           </div>
@@ -746,7 +819,7 @@ const PendingPayments = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      Download {filterType !== 'all' ? 'Filtered' : ''} List
+                      {loading ? 'Preparing...' : `Download ${filterType !== 'all' ? 'Filtered' : ''} Detailed List`}
                     </button>
                   </div>
                 </div>

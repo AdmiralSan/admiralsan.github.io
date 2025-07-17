@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { billingAccountsIntegration } from '../utils/billingAccountsIntegration';
 import Modal from './Modal';
 import PaymentModal from './PaymentModal';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 const PendingInvoiceDetail = ({ invoice, onClose, onPaymentComplete, onEditInvoice }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState([]);
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (invoice && invoice.id) {
+      fetchPaymentHistory(invoice.id);
+    }
+  }, [invoice]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -75,6 +83,29 @@ const PendingInvoiceDetail = ({ invoice, onClose, onPaymentComplete, onEditInvoi
     } else if (paymentStatus === 'partial' && invoice) {
       invoice.payment_status = 'partial';
       invoice.amount_paid = (invoice.amount_paid || 0) + amountPaid;
+    }
+    
+    // Refresh payment history after a new payment is made
+    fetchPaymentHistory(invoiceId);
+  };
+  
+  // Function to fetch payment history for the invoice
+  const fetchPaymentHistory = async (invoiceId) => {
+    try {
+      setLoading(true);
+      // Get payments related to this invoice
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('invoice_id', invoiceId)
+        .order('payment_date', { ascending: false });
+        
+      if (error) throw error;
+      setPaymentHistory(data || []);
+    } catch (err) {
+      console.error('Error fetching payment history:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -285,6 +316,79 @@ const PendingInvoiceDetail = ({ invoice, onClose, onPaymentComplete, onEditInvoi
                 </div>
               )}
             </div>
+          </div>
+          
+          {/* Payment History */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment History</h3>
+            {loading ? (
+              <div className="text-center py-4">
+                <p>Loading payment history...</p>
+              </div>
+            ) : paymentHistory && paymentHistory.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Payment Method
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Reference
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paymentHistory.map((payment) => (
+                      <tr key={payment.id}>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {new Date(payment.payment_date).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {formatCurrency(payment.amount)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {payment.payment_method || 'Not specified'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {payment.reference || '-'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            payment.payment_status === 'completed' ? 'bg-green-100 text-green-800' : 
+                            payment.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {payment.payment_status || 'Unknown'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-4 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">No payment records found for this invoice.</p>
+              </div>
+            )}
           </div>
 
           {/* Actions */}

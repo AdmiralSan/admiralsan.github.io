@@ -38,6 +38,12 @@ const AccountsNavigation = () => {
       permission: PERMISSIONS.billing.view 
     },
     { 
+      name: 'Assigned Collections', 
+      href: '/accounts/assigned-pending', 
+      icon: '📋',
+      permission: PERMISSIONS.billing.view 
+    },
+    { 
       name: 'Expenses', 
       href: '/accounts/expenses', 
       icon: '💸',
