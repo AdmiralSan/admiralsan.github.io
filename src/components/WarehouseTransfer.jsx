@@ -4,7 +4,7 @@ import {
   getWarehouses, 
   getWarehouseInventory, 
   transferBetweenWarehouses 
-// ...existing code...
+} from '../utils/inventoryUtils';
 import { supabase } from '../supabaseClient';
 
 const WarehouseTransfer = ({ onClose, onTransferComplete }) => {

@@ -5,7 +5,7 @@ import ProductVariant from './ProductVariant';
 import ProductImageUpload from './ProductImageUpload';
 import BatchOperations from './BatchOperations';
 import { recordStockMovement } from '../utils/stockMovementUtil';
-// ...existing code...
+import { getWarehouses } from '../utils/inventoryUtils';
 
 const initialForm = {
   name: '',

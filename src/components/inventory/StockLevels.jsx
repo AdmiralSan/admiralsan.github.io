@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { motion } from 'framer-motion';
-// ...existing code...
 
 const StockLevels = () => {
   const { refreshData } = useOutletContext();
@@ -21,12 +20,19 @@ const StockLevels = () => {
   
   const fetchWarehouses = async () => {
     try {
-      const result = await getWarehouses({ sortBy: 'name', ascending: true });
-      if (result.error) throw result.error;
-      setWarehouses(result.data || []);
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('id, name, location')
+        .order('name');
+      
+      if (error) {
+        console.error('Supabase error fetching warehouses:', error);
+        throw error;
+      }
+      setWarehouses(data || []);
     } catch (err) {
       console.error('Error fetching warehouses:', err);
-      setError('Failed to fetch warehouses. Please try again.');
+      setError(`Failed to fetch warehouses: ${err.message || 'Please check your connection and try again.'}`);
     }
   };
   
@@ -34,31 +40,47 @@ const StockLevels = () => {
     try {
       setLoading(true);
       
-      // Get product locations utility - this fetches comprehensive inventory data
-      const { data: productsWithLocations, error: locationsError } = await supabase.rpc('get_product_inventory_summary');
+      // Fetch products with their warehouse information
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select(`
+          id, 
+          name, 
+          sku, 
+          category, 
+          price, 
+          reorder_level, 
+          quantity,
+          warehouse_id,
+          warehouses:warehouse_id (
+            id,
+            name
+          )
+        `);
       
-      if (locationsError) throw locationsError;
+      if (productsError) {
+        console.error('Supabase error fetching products:', productsError);
+        throw productsError;
+      }
       
       // Process the data to create warehouse distribution
-      const productsWithStock = productsWithLocations.map(product => {
+      const productsWithStock = products.map(product => {
         // Initialize warehouse quantities map
         const warehouseQuantities = {};
         
-        // Process warehouse distribution data
-        if (product.warehouse_distribution) {
-          Object.entries(product.warehouse_distribution).forEach(([warehouseId, quantity]) => {
-            warehouseQuantities[warehouseId] = quantity;
-          });
+        // Set the quantity for the warehouse this product belongs to
+        if (product.warehouse_id) {
+          warehouseQuantities[product.warehouse_id] = product.quantity || 0;
         }
         
         return {
-          id: product.product_id,
-          name: product.product_name,
+          id: product.id,
+          name: product.name,
           sku: product.sku,
           category: product.category,
           price: product.price,
           reorder_level: product.reorder_level,
-          totalQuantity: product.total_quantity || 0,
+          totalQuantity: product.quantity || 0,
           warehouseQuantities
         };
       });
@@ -66,7 +88,7 @@ const StockLevels = () => {
       setProducts(productsWithStock);
     } catch (err) {
       console.error('Error fetching stock data:', err);
-      setError('Failed to fetch stock data. Please try again.');
+      setError(`Failed to fetch stock data: ${err.message || 'Please check your connection and try again.'}`);
     } finally {
       setLoading(false);
     }
@@ -101,6 +123,12 @@ const StockLevels = () => {
     return matchesSearch && matchesWarehouse && matchesStatus;
   });
   
+  const handleRefresh = () => {
+    setError(null);
+    fetchWarehouses();
+    fetchProducts();
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-32">
@@ -112,18 +140,38 @@ const StockLevels = () => {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="bg-red-50 border-l-4 border-red-500 p-4">
-        <p className="text-red-700">{error}</p>
+        <div className="flex justify-between items-center">
+          <p className="text-red-700">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
   
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6">Stock Levels</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Stock Levels</h2>
+        <button
+          onClick={handleRefresh}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center"
+          disabled={loading}
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
+      </div>
       
       {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -218,7 +266,35 @@ const StockLevels = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map(product => {
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center">
+                    <div className="text-gray-500">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No products found</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {products.length === 0 
+                          ? "No products are available in your inventory."
+                          : "No products match your current filters."
+                        }
+                      </p>
+                      {products.length === 0 && (
+                        <div className="mt-4">
+                          <button
+                            onClick={handleRefresh}
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
+                          >
+                            Refresh Data
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map(product => {
                 const stockLevel = selectedWarehouse === 'all' 
                   ? product.totalQuantity 
                   : (product.warehouseQuantities?.[selectedWarehouse] || 0);
@@ -276,7 +352,7 @@ const StockLevels = () => {
                     )}
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

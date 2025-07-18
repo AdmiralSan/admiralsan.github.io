@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
-// ...existing code...
+import { getWarehouses } from '../utils/inventoryUtils';
 
 const ProductVariant = ({ productId, onClose, existingVariants = [] }) => {
   const [variants, setVariants] = useState(existingVariants.length > 0 ? existingVariants : [{ attribute_name: '', value: '', sku: '', price_adjustment: 0, stock: 0, warehouse_id: '' }]);

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
-// ...existing code...
+import { getWarehouses } from '../utils/inventoryUtils';
 import WarehouseModal from '../components/WarehouseModal';
-// ...existing code...
 import WarehouseInventoryView from '../components/WarehouseInventoryView';
 
 const WarehouseManagement = () => {
