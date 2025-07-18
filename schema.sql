@@ -1,27 +1,4 @@
--- VsdvBillsoft Database Schema for Supabase
 
--- Users table (leveraging Supabase Auth)
--- This references the auth.users table created by Supabase Auth
-create table public.users (
-  id uuid references auth.users not null primary key,
-  email text not null,
-  full_name text,
-  avatar_url text,
-  created_at timestamp with time zone default now() not null,
-  updated_at timestamp with time zone default now() not null
-);
-
--- Enable Row Level Security
-alter table public.users enable row level security;
-
--- Create policies
-create policy "Users can view their own user data" on public.users
-  for select using (auth.uid() = id);
-
-create policy "Users can update their own user data" on public.users
-  for update using (auth.uid() = id);
-
--- Suppliers table
 create table public.suppliers (
   id uuid default gen_random_uuid() primary key,
   name text not null,
@@ -33,13 +10,11 @@ create table public.suppliers (
   is_active boolean default true,
   created_at timestamp with time zone default now() not null,
   updated_at timestamp with time zone default now() not null,
-  created_by uuid references public.users(id)
+  -- removed created_by (user management)
 );
 
--- Enable Row Level Security
 alter table public.suppliers enable row level security;
 
--- Create policies
 create policy "Authenticated users can view suppliers" on public.suppliers
   for select using (auth.role() = 'authenticated');
 
@@ -52,7 +27,6 @@ create policy "Authenticated users can update suppliers" on public.suppliers
 create policy "Authenticated users can delete suppliers" on public.suppliers
   for delete using (auth.role() = 'authenticated');
 
--- Products table
 create table public.products (
   id uuid default gen_random_uuid() primary key,
   name text not null,
@@ -67,13 +41,11 @@ create table public.products (
   has_expiry boolean default false,
   created_at timestamp with time zone default now() not null,
   updated_at timestamp with time zone default now() not null,
-  created_by uuid references public.users(id)
+  -- removed created_by (user management)
 );
 
--- Enable Row Level Security
 alter table public.products enable row level security;
 
--- Create policies
 create policy "Authenticated users can view products" on public.products
   for select using (auth.role() = 'authenticated');
 
@@ -86,7 +58,6 @@ create policy "Authenticated users can update products" on public.products
 create policy "Authenticated users can delete products" on public.products
   for delete using (auth.role() = 'authenticated');
 
--- Product variants
 create table public.product_variants (
   id uuid default gen_random_uuid() primary key,
   product_id uuid references public.products(id) not null,
@@ -100,10 +71,8 @@ create table public.product_variants (
   unique(product_id, attribute_name, value)
 );
 
--- Enable Row Level Security
 alter table public.product_variants enable row level security;
 
--- Create policies
 create policy "Authenticated users can view product variants" on public.product_variants
   for select using (auth.role() = 'authenticated');
 
@@ -116,7 +85,6 @@ create policy "Authenticated users can update product variants" on public.produc
 create policy "Authenticated users can delete product variants" on public.product_variants
   for delete using (auth.role() = 'authenticated');
 
--- Product images
 create table public.product_images (
   id uuid default gen_random_uuid() primary key,
   product_id uuid references public.products(id) not null,
@@ -128,10 +96,8 @@ create table public.product_images (
   created_at timestamp with time zone default now() not null
 );
 
--- Enable Row Level Security
 alter table public.product_images enable row level security;
 
--- Create policies
 create policy "Authenticated users can view product images" on public.product_images
   for select using (auth.role() = 'authenticated');
 
@@ -144,7 +110,6 @@ create policy "Authenticated users can update product images" on public.product_
 create policy "Authenticated users can delete product images" on public.product_images
   for delete using (auth.role() = 'authenticated');
 
--- Stock movements
 create table public.stock_movements (
   id uuid default gen_random_uuid() primary key,
   product_id uuid references public.products(id) not null,
@@ -153,21 +118,18 @@ create table public.stock_movements (
   movement_type text not null check (movement_type in ('incoming', 'outgoing', 'adjustment', 'transfer')),
   reference_number text, -- e.g., order number, invoice number
   notes text,
-  created_by uuid references public.users(id),
+  -- removed created_by (user management)
   created_at timestamp with time zone default now() not null
 );
 
--- Enable Row Level Security
 alter table public.stock_movements enable row level security;
 
--- Create policies
 create policy "Authenticated users can view stock movements" on public.stock_movements
   for select using (auth.role() = 'authenticated');
 
 create policy "Authenticated users can insert stock movements" on public.stock_movements
   for insert with check (auth.role() = 'authenticated');
 
--- Product batches for expiry tracking
 create table public.product_batches (
   id uuid default gen_random_uuid() primary key,
   product_id uuid references public.products(id) not null,
@@ -180,10 +142,8 @@ create table public.product_batches (
   updated_at timestamp with time zone default now() not null
 );
 
--- Enable Row Level Security
 alter table public.product_batches enable row level security;
 
--- Create policies
 create policy "Authenticated users can view product batches" on public.product_batches
   for select using (auth.role() = 'authenticated');
 
@@ -196,7 +156,6 @@ create policy "Authenticated users can update product batches" on public.product
 create policy "Authenticated users can delete product batches" on public.product_batches
   for delete using (auth.role() = 'authenticated');
 
--- Purchase orders for automated reordering
 create table public.purchase_orders (
   id uuid default gen_random_uuid() primary key,
   supplier_id uuid references public.suppliers(id) not null,
@@ -205,15 +164,13 @@ create table public.purchase_orders (
   status text not null default 'pending' check (status in ('pending', 'ordered', 'received', 'cancelled')),
   expected_delivery_date date,
   notes text,
-  created_by uuid references public.users(id),
+  -- removed created_by (user management)
   created_at timestamp with time zone default now() not null,
   updated_at timestamp with time zone default now() not null
 );
 
--- Enable Row Level Security
 alter table public.purchase_orders enable row level security;
 
--- Create policies
 create policy "Authenticated users can view purchase orders" on public.purchase_orders
   for select using (auth.role() = 'authenticated');
 
@@ -226,7 +183,6 @@ create policy "Authenticated users can update purchase orders" on public.purchas
 create policy "Authenticated users can delete purchase orders" on public.purchase_orders
   for delete using (auth.role() = 'authenticated');
 
--- Order items for purchase orders
 create table public.order_items (
   id uuid default gen_random_uuid() primary key,
   purchase_order_id uuid references public.purchase_orders(id) not null,
@@ -238,10 +194,8 @@ create table public.order_items (
   created_at timestamp with time zone default now() not null
 );
 
--- Enable Row Level Security
 alter table public.order_items enable row level security;
 
--- Create policies
 create policy "Authenticated users can view order items" on public.order_items
   for select using (auth.role() = 'authenticated');
 

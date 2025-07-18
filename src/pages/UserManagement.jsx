@@ -1,23 +1,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ClerkUserManagementSimple from '../components/ClerkUserManagementSimple';
-import RoleManagement from '../components/RoleManagement';
-import { usePermissions } from '../contexts/PermissionsContext';
-import { PERMISSIONS } from '../utils/permissions';
+// Removed ClerkUserManagementSimple import
+// RoleManagement removed
+// Removed permissions context import
 
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('users');
-  const { hasPermission } = usePermissions();
+  // Removed permission check
 
   // Check if the user has permission to manage roles
-  const canManageRoles = hasPermission(PERMISSIONS.users.roles);
+  // Removed role management permission check
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6">
       {/* Page Header */}
       <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">User Management</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage user accounts, permissions, and roles</p>
+        <p className="text-sm text-gray-500 mt-1">Manage user accounts</p>
       </div>
 
       {/* Navigation Tabs */}
@@ -40,7 +39,7 @@ const UserManagement = () => {
               </span>
             </button>
 
-            {canManageRoles && (
+            {/* Removed role management button */}
               <button
                 className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
                   activeTab === 'roles'
@@ -56,7 +55,7 @@ const UserManagement = () => {
                   Roles & Permissions
                 </span>
               </button>
-            )}
+            {/* End of role management button */}
           </nav>
         </div>
 
@@ -70,7 +69,7 @@ const UserManagement = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
               >
-                <ClerkUserManagementSimple />
+                {/* ClerkUserManagementSimple removed */}
               </motion.div>
             ) : (
               <motion.div
@@ -80,7 +79,7 @@ const UserManagement = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
               >
-                <RoleManagement />
+                {/* RoleManagement removed */}
               </motion.div>
             )}
           </AnimatePresence>

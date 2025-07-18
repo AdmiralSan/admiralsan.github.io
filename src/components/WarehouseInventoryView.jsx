@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getWarehouseInventory, getWarehouseStockMovements } from '../utils/warehouseUtils';
+// ...existing code...
 
 const WarehouseInventoryView = ({ warehouse, onClose }) => {
   const [inventory, setInventory] = useState(null);

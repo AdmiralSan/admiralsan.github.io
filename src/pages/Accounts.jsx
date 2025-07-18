@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Outlet, useLocation, NavLink } from 'react-router-dom';
-import { usePermissions } from '../contexts/PermissionsContext';
-import { PERMISSIONS } from '../utils/permissions';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { billingAccountsIntegration } from '../utils/billingAccountsIntegration';
 import { dashboardAPI } from '../utils/accountsAPI';
@@ -10,85 +8,36 @@ import CategoryManager from '../components/CategoryManager';
 
 const AccountsNavigation = () => {
   const location = useLocation();
-  const { hasPermission } = usePermissions();
-  
+  // const { hasPermission } = usePermissions();
   const accountsNavLinks = [
-    { 
-      name: 'Overview', 
-      href: '/accounts/overview', 
-      icon: '📊',
-      permission: PERMISSIONS.billing.view 
-    },
-    { 
-      name: 'Daily Ledger', 
-      href: '/accounts/daily-ledger', 
-      icon: '📋',
-      permission: PERMISSIONS.billing.view 
-    },
-    { 
-      name: 'Payments', 
-      href: '/accounts/payments', 
-      icon: '💰',
-      permission: PERMISSIONS.billing.view 
-    },
-    { 
-      name: 'Pending', 
-      href: '/accounts/pending', 
-      icon: '⏳',
-      permission: PERMISSIONS.billing.view 
-    },
-    { 
-      name: 'Assigned Collections', 
-      href: '/accounts/assigned-pending', 
-      icon: '📋',
-      permission: PERMISSIONS.billing.view 
-    },
-    { 
-      name: 'Expenses', 
-      href: '/accounts/expenses', 
-      icon: '💸',
-      permission: PERMISSIONS.billing.view 
-    },
-    { 
-      name: 'Reports', 
-      href: '/accounts/reports', 
-      icon: '📈',
-      permission: PERMISSIONS.reports.view 
-    },
-    { 
-      name: 'Billing', 
-      href: '/billing', 
-      icon: '🧾',
-      permission: PERMISSIONS.billing.view 
-    },
-    { 
-      name: 'Settings', 
-      href: '/accounts/settings', 
-      icon: '⚙️',
-      permission: PERMISSIONS.settings.view 
-    }
+    { name: 'Overview', href: '/accounts/overview', icon: '📊' },
+    { name: 'Daily Ledger', href: '/accounts/daily-ledger', icon: '📋' },
+    { name: 'Payments', href: '/accounts/payments', icon: '💰' },
+    { name: 'Pending', href: '/accounts/pending', icon: '⏳' },
+    { name: 'Assigned Collections', href: '/accounts/assigned-pending', icon: '📋' },
+    { name: 'Expenses', href: '/accounts/expenses', icon: '💸' },
+    { name: 'Reports', href: '/accounts/reports', icon: '📈' },
+    { name: 'Billing', href: '/billing', icon: '🧾' },
+    { name: 'Settings', href: '/accounts/settings', icon: '⚙️' }
   ];
-
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-4 mb-6">
       <div className="flex flex-wrap gap-2">
         {accountsNavLinks.map((link) => (
-          hasPermission(link.permission) && (
-            <NavLink
-              key={link.name}
-              to={link.href}
-              className={({ isActive }) =>
-                `flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`
-              }
-            >
-              <span className="mr-2">{link.icon}</span>
-              {link.name}
-            </NavLink>
-          )
+          <NavLink
+            key={link.name}
+            to={link.href}
+            className={({ isActive }) =>
+              `flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                isActive
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`
+            }
+          >
+            <span className="mr-2">{link.icon}</span>
+            {link.name}
+          </NavLink>
         ))}
       </div>
     </nav>
@@ -97,7 +46,7 @@ const AccountsNavigation = () => {
 
 const AccountsLayout = () => {
   const location = useLocation();
-  const { hasPermission } = usePermissions();
+  // const { hasPermission } = usePermissions();
   const { formatCurrency } = useCurrency();
   
   const [loading, setLoading] = useState(true);
@@ -118,18 +67,7 @@ const AccountsLayout = () => {
   };
 
   // Check if user has permission to view accounts
-  if (!hasPermission(PERMISSIONS.billing.view)) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          Access Denied
-        </h2>
-        <p className="text-gray-500 dark:text-gray-400">
-          You don't have permission to view accounts information.
-        </p>
-      </div>
-    );
-  }
+  // permission check removed
 
   return (
     <div className="space-y-6">

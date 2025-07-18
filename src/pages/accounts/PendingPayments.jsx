@@ -7,12 +7,12 @@ import Modal from '../../components/Modal';
 import AssignmentModal from '../../components/AssignmentModal';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
-import { usePermissions } from '../../contexts/PermissionsContext';
+// Permissions logic removed
 import 'react-datepicker/dist/react-datepicker.css';
 
 const PendingPayments = () => {
   const navigate = useNavigate();
-  const { hasPermission } = usePermissions();
+  // Permissions logic removed
   const [pendingData, setPendingData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -653,6 +653,11 @@ const PendingPayments = () => {
               // Navigate to billing page with the invoice ID to edit
               navigate('/billing', { state: { editInvoiceId: invoice.id } });
             }}
+            onAssign={(invoice) => {
+              // Show assignment modal with the selected invoice
+              setShowAssignModal(true);
+              // Don't clear selectedInvoice since we need it for the assignment modal
+            }}
           />
         )}
       </AnimatePresence>
@@ -1073,8 +1078,7 @@ const PendingPayments = () => {
                     </tbody>
                   </table>
                 </div>
-              )}
-                </>
+              </>
               )}
             </div>
           </Modal>

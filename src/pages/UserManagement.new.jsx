@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '@clerk/clerk-react';
-import { usePermissions } from '../contexts/PermissionsContext';
+// Permissions logic removed
 import { supabase } from '../supabaseClient';
 import { ROLES, PERMISSIONS, getAllRoles, getRoleInfo } from '../utils/permissions';
 
@@ -17,7 +17,7 @@ const UserManagement = () => {
   const [updatingRole, setUpdatingRole] = useState(false);
 
   const { user: currentUser } = useUser();
-  const { hasPermission, userRole: currentUserRole, updateUserRole } = usePermissions();
+  // Permissions logic removed
 
   // Check permissions
   const canViewUsers = hasPermission(PERMISSIONS.users.view);

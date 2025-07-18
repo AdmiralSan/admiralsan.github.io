@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser, useOrganization } from '@clerk/clerk-react';
-import { usePermissions } from '../contexts/PermissionsContext';
-import { PERMISSIONS } from '../utils/permissions';
+// Removed permissions context imports
 
 const DebugPanel = () => {
   const { user, isSignedIn } = useUser();
   const { organization, membership } = useOrganization();
-  const { userRole, hasPermission, loading } = usePermissions();
+  const loading = false; // Placeholder since permissions are removed
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!isSignedIn) {
@@ -36,6 +35,7 @@ const DebugPanel = () => {
               transition={{ duration: 0.2 }}
             >
               <p className="text-red-600">Please sign in to see permissions</p>
+              {/* Permissions info removed */}
             </motion.div>
           )}
         </AnimatePresence>
@@ -78,9 +78,7 @@ const DebugPanel = () => {
                 <strong>Loading:</strong> {loading ? 'Yes' : 'No'}
               </div>
               
-              <div>
-                <strong>Detected Role:</strong> {userRole || 'None'}
-              </div>
+              {/* <strong>Detected Role:</strong> {userRole || 'None'} */}
               
               <div className="border-t pt-2 mt-2">
                 <strong>Clerk Data:</strong>
@@ -92,9 +90,7 @@ const DebugPanel = () => {
               <div className="border-t pt-2 mt-2">
                 <strong>Key Permissions:</strong>
                 <ul className="mt-1 space-y-1">
-                  <li>Users View: {hasPermission(PERMISSIONS.users.view) ? '✅' : '❌'}</li>
-                  <li>Dashboard: {hasPermission(PERMISSIONS.dashboard.view) ? '✅' : '❌'}</li>
-                  <li>Products: {hasPermission(PERMISSIONS.products.view) ? '✅' : '❌'}</li>
+                {/* Key Permissions removed */}
                 </ul>
               </div>
             </div>

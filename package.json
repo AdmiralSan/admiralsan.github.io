@@ -8,12 +8,19 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "setup-admin": "node setup-admin.js"
+    "setup-admin": "node setup-admin.js",
+    "api": "node server.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run api\""
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.33.0",
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "@supabase/supabase-js": "^2.39.3",
+    "concurrently": "^9.2.0",
+    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.16.0",
     "html2canvas": "^1.4.1",

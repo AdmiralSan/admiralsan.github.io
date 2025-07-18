@@ -1,83 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePermissions } from '../contexts/PermissionsContext';
-import { PERMISSIONS, ROLES, getAllRoles, getRoleInfo } from '../utils/permissions';
+import { useOrganization, useAuth } from '@clerk/clerk-react';
+import { PERMISSIONS } from '../utils/permissions';
+import { CLERK_ROLES, getPermissionsForAppRole } from '../utils/clerkRoleMapping';
 import { supabase } from '../supabaseClient';
 import Modal from './Modal';
-
-const RoleManagement = () => {
-  const [roles, setRoles] = useState([]);
+// Permission logic removed
   const [selectedRole, setSelectedRole] = useState(null);
-  const [showRoleModal, setShowRoleModal] = useState(false);
+  // Permission logic removed
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const { hasPermission } = usePermissions();
+  // Permission logic removed
   
-  // Form state for role editing
-  const [roleForm, setRoleForm] = useState({
-    name: '',
-    description: '',
-    permissions: []
-  });
-  
-  // Group permissions by category for easier management
-  const permissionCategories = {
-    dashboard: Object.values(PERMISSIONS.dashboard),
-    products: Object.values(PERMISSIONS.products),
-    inventory: Object.values(PERMISSIONS.inventory),
-    warehouses: Object.values(PERMISSIONS.warehouses),
-    suppliers: Object.values(PERMISSIONS.suppliers),
-    users: Object.values(PERMISSIONS.users),
-    settings: Object.values(PERMISSIONS.settings),
-    reports: Object.values(PERMISSIONS.reports),
-    billing: Object.values(PERMISSIONS.billing)
-  };
-  
-  const permissionLabels = {
-    'dashboard:view': 'View Dashboard',
-    'dashboard:analytics': 'View Analytics',
-    'products:view': 'View Products',
-    'products:create': 'Create Products',
-    'products:edit': 'Edit Products',
-    'products:delete': 'Delete Products',
-    'products:export': 'Export Products',
-    'inventory:view': 'View Inventory',
-    'inventory:edit': 'Edit Inventory',
-    'inventory:transfer': 'Transfer Inventory',
-    'inventory:adjust': 'Adjust Inventory',
-    'inventory:reports': 'Inventory Reports',
-    'warehouses:view': 'View Warehouses',
-    'warehouses:create': 'Create Warehouses',
-    'warehouses:edit': 'Edit Warehouses',
-    'warehouses:delete': 'Delete Warehouses',
-    'warehouses:manage': 'Manage Warehouses',
-    'suppliers:view': 'View Suppliers',
-    'suppliers:create': 'Create Suppliers',
-    'suppliers:edit': 'Edit Suppliers',
-    'suppliers:delete': 'Delete Suppliers',
-    'users:view': 'View Users',
-    'users:create': 'Create Users',
-    'users:edit': 'Edit Users',
+  // Permission logic removed
     'users:delete': 'Delete Users',
-    'users:roles': 'Manage Roles',
+  // Permission logic removed
     'settings:view': 'View Settings',
-    'settings:edit': 'Edit Settings',
-    'settings:system': 'System Settings',
-    'reports:view': 'View Reports',
-    'reports:generate': 'Generate Reports',
-    'reports:export': 'Export Reports',
-    'billing:view': 'View Billing',
-    'billing:create': 'Create Invoices',
-    'billing:edit': 'Edit Invoices',
-    'billing:process': 'Process Payments'
-  };
-
-  // Check if user has permission to manage roles
-  const canManageRoles = hasPermission(PERMISSIONS.users.roles);
-  
-  useEffect(() => {
+      // Permission logic removed
     if (canManageRoles) {
       loadRoles();
     }
@@ -94,17 +33,30 @@ const RoleManagement = () => {
     }
   }, [error, success]);
   
-  const loadRoles = () => {
+  const { organization } = useOrganization();
+  const { getToken } = useAuth();
+  
+  const loadRoles = async () => {
     try {
       setLoading(true);
-      const roleKeys = getAllRoles();
-      const roleData = roleKeys.map(key => ({
-        id: key,
-        name: ROLES[key].name,
-        description: ROLES[key].description,
-        permissions: ROLES[key].permissions,
-        isSystem: ['admin', 'manager', 'staff', 'viewer'].includes(key) // Mark system roles
-      }));
+      
+      // Get all available roles from our Clerk role mapping
+      const availableRoles = Object.keys(CLERK_ROLES);
+      
+      // Transform roles into a more detailed format
+      const roleData = availableRoles.map(key => {
+        const roleInfo = CLERK_ROLES[key];
+        const permissions = getPermissionsForAppRole(key);
+        
+        return {
+          id: key,
+          name: roleInfo.name,
+          description: roleInfo.description,
+          clerkRole: roleInfo.defaultClerkRole,
+          permissions: permissions,
+          isSystem: true // All roles are now system roles since they map to Clerk
+        };
+      });
       
       setRoles(roleData);
     } catch (err) {

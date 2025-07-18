@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useUser, useOrganization } from '@clerk/clerk-react';
+import { useUser, useOrganization, useAuth } from '@clerk/clerk-react';
 import { hasPermission as checkPermission, ROLES, getRoleInfo } from '../utils/permissions';
+import { supabase } from '../supabaseClient';
+import { 
+  mapClerkRoleToAppRole, 
+  getPermissionsForAppRole, 
+  getPermissionsForClerkRole
+} from '../utils/clerkRoleMapping';
 
 const PermissionsContext = createContext();
 
@@ -19,7 +25,7 @@ export const PermissionsProvider = ({ children }) => {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Get user role from Clerk
+  // Get user role from Clerk organization
   useEffect(() => {
     const getUserRole = () => {
       if (!isSignedIn || !user) {
@@ -34,40 +40,51 @@ export const PermissionsProvider = ({ children }) => {
 
         let role = 'viewer'; // Default role
 
-        // Method 1: Check organization membership role
+        // Primary method: Get role from organization membership
         if (organization && membership) {
-          // Map Clerk organization roles to our app roles
-          const orgRole = membership.role;
-          switch (orgRole) {
-            case 'org:admin':
+          const clerkRole = membership.role;
+          
+          // Map Clerk organization roles to our application roles
+          // Clerk default roles: admin, member, guest
+          // Custom roles can be configured in Clerk Dashboard
+          switch (clerkRole) {
+            case 'admin':
               role = 'admin';
               break;
-            case 'org:member':
+            case 'manager':
+              role = 'manager';
+              break;
+            case 'member':
               role = 'staff';
               break;
+            case 'guest':
+              role = 'viewer';
+              break;
+            // Handle any custom roles you've configured in Clerk
+            case 'finance':
+              role = 'accountant';
+              break;
+            case 'sales':
+              role = 'sales';
+              break;
             default:
+              // For any unknown role, default to staff
               role = 'staff';
           }
         } 
-        // Method 2: Check user's public metadata for role
+        // Fallback: If not in organization but has metadata
         else if (user.publicMetadata && user.publicMetadata.role) {
           role = user.publicMetadata.role;
         }
-        // Method 3: Check if user has admin role in privateMetadata
-        else if (user.privateMetadata && user.privateMetadata.role) {
-          role = user.privateMetadata.role;
-        }
-        // Method 4: First user becomes admin automatically
+        // Last resort: First user becomes admin automatically
         else if (user.createdAt && new Date(user.createdAt).getTime() < Date.now() - 60000) {
-          // If this is likely the first user (created more than 1 minute ago), make them admin
-          // You might want to implement a better first-user detection logic
           role = 'admin';
         }
 
         setUserRole(role);
         
-        // Set permissions based on role
-        const rolePermissions = ROLES[role]?.permissions || [];
+        // Set permissions based on role using our new mapping
+        const rolePermissions = getPermissionsForAppRole(role);
         setPermissions(rolePermissions);
 
       } catch (error) {
@@ -99,20 +116,64 @@ export const PermissionsProvider = ({ children }) => {
     return permissionList.every(permission => hasPermission(permission));
   };
 
-  // Update user role using Clerk metadata (admin only)
+  // Update user role using Clerk's organization roles (admin only)
   const updateUserRole = async (userId, newRole) => {
     if (!hasPermission('users:roles')) {
       throw new Error('Insufficient permissions to update user roles');
     }
 
+    if (!organization) {
+      return { success: false, error: 'No organization available' };
+    }
+
     try {
-      // Note: This would require Clerk Backend API to update user metadata
-      // For now, we'll just show an error message
-      console.warn('Role updates need to be done through Clerk Dashboard or Backend API');
-      return { 
-        success: false, 
-        error: 'Role updates must be done through Clerk Dashboard. Go to clerk.com dashboard -> Users -> Select user -> Edit metadata.' 
-      };
+      // Convert our app role to Clerk organization role
+      let clerkRole;
+      switch (newRole) {
+        case 'admin':
+          clerkRole = 'admin';
+          break;
+        case 'manager':
+          clerkRole = 'manager';
+          break;
+        case 'staff':
+          clerkRole = 'member';
+          break;
+        case 'viewer':
+          clerkRole = 'guest';
+          break;
+        default:
+          clerkRole = 'member'; // Default to basic member
+      }
+
+      // Update the user's role in the Clerk organization
+      try {
+        await organization.updateMember({
+          userId,
+          role: clerkRole
+        });
+        
+        console.log(`Role for user ${userId} updated to ${clerkRole} in Clerk`);
+        
+        // We also update Supabase for backward compatibility
+        const { error: supabaseError } = await supabase
+          .from('users')
+          .update({
+            role: newRole,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
+
+        if (supabaseError) {
+          console.warn('Supabase role update warning:', supabaseError);
+          // We don't fail if Supabase update fails, as Clerk is our source of truth
+        }
+        
+        return { success: true };
+      } catch (clerkError) {
+        console.error('Clerk role update failed:', clerkError);
+        return { success: false, error: `Clerk error: ${clerkError.message || 'Unknown error'}` };
+      }
     } catch (error) {
       console.error('Error updating user role:', error);
       return { success: false, error: error.message };

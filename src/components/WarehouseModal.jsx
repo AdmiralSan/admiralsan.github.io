@@ -1,6 +1,6 @@
     import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { createWarehouse, updateWarehouse } from '../utils/warehouseUtils';
+// ...existing code...
 import { supabase } from '../supabaseClient';
 
 const WarehouseModal = ({ warehouse = null, onClose, onWarehouseAdded, onWarehouseUpdated }) => {

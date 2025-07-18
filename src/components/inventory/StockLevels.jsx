@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { motion } from 'framer-motion';
-import { getWarehouses } from '../../utils/warehouseUtils';
+// ...existing code...
 
 const StockLevels = () => {
   const { refreshData } = useOutletContext();

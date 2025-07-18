@@ -13,7 +13,7 @@ const UserManagement = () => {
   const [updatingRole, setUpdatingRole] = useState(false);
 
   const { user: currentUser } = useUser();
-  const { hasPermission, userRole: currentUserRole, updateUserRole } = usePermissions();
+  // Permissions logic removed
 
   // Check permissions
   const canViewUsers = hasPermission(PERMISSIONS.users.view);

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
-import { getWarehouses, deleteWarehouse, getWarehouseInventory } from '../utils/warehouseUtils';
+// ...existing code...
 import WarehouseModal from '../components/WarehouseModal';
-import WarehouseTransfer from '../components/WarehouseTransfer';
+// ...existing code...
 import WarehouseInventoryView from '../components/WarehouseInventoryView';
 
 const WarehouseManagement = () => {
@@ -366,12 +366,7 @@ const WarehouseManagement = () => {
         )}
 
         {/* Transfer Modal */}
-        {showTransferModal && (
-          <WarehouseTransfer
-            onClose={() => setShowTransferModal(false)}
-            onTransferComplete={handleOperationComplete}
-          />
-        )}
+        {/* WarehouseTransfer removed */}
 
         {/* Inventory View Modal */}
         {showInventoryModal && currentWarehouse && (
