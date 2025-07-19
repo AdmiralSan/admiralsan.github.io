@@ -2,6 +2,18 @@ import React from 'react';
 import Modal from './Modal';
 
 const AssignmentModal = ({ isOpen, onClose, selectedInvoice, availableUsers, selectedUser, setSelectedUser, assignmentNotes, setAssignmentNotes, onSubmit }) => {
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [isOpen, onClose]);
   if (!isOpen || !selectedInvoice) return null;
   
   return (

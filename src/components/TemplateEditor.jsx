@@ -21,7 +21,17 @@ const TemplateEditor = ({ isOpen, onClose, initialTemplateData, onSave }) => {
         ...initialTemplateData
       }));
     }
-  }, [initialTemplateData, isOpen]);
+    // Escape key handler
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [initialTemplateData, isOpen, onClose]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

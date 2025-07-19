@@ -31,7 +31,18 @@ import Modal from './Modal';
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [error, success]);
+    // Escape key handler for modals
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        if (showCreateModal) setShowCreateModal(false);
+        if (selectedRole) setSelectedRole(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [error, success, showCreateModal, selectedRole]);
   
   const { organization } = useOrganization();
   const { getToken } = useAuth();

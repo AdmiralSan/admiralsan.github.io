@@ -17,7 +17,17 @@ const ProductDetail = ({ productId, onClose }) => {
     if (productId) {
       fetchProductDetails();
     }
-  }, [productId]);
+    // Add Escape key handler
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [productId, onClose]);
 
   const fetchProductDetails = async () => {
     try {
@@ -297,6 +307,9 @@ const ProductDetail = ({ productId, onClose }) => {
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-slate-700 mb-1">Price</h3>
                     <p className="text-2xl font-bold text-blue-600">${parseFloat(product.price).toFixed(2)}</p>
+                    {typeof product.purchase_price !== 'undefined' && (
+                      <p className="text-sm text-blue-500 mt-1">Purchase Price: ${parseFloat(product.purchase_price).toFixed(2)}</p>
+                    )}
                   </div>
                   
                   <div className="mb-4">

@@ -2160,6 +2160,18 @@ const Billing = () => {
                               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
                               required
                             />
+                            {/* Show purchase price for reference only */}
+                            {item.product_id && (() => {
+                              const product = products.find(p => p.id === item.product_id);
+                              if (product && typeof product.purchase_price !== 'undefined') {
+                                return (
+                                  <div className="text-xs text-blue-500 mt-1">
+                                    Purchase Price: ₹{Number(product.purchase_price).toFixed(2)}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                           
                           {/* Discount Percent */}

@@ -31,7 +31,17 @@ const WarehouseModal = ({ warehouse = null, onClose, onWarehouseAdded, onWarehou
         notes: warehouse.notes || ''
       });
     }
-  }, [warehouse]);
+    // Escape key handler
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [warehouse, onClose]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -84,7 +94,6 @@ const WarehouseModal = ({ warehouse = null, onClose, onWarehouseAdded, onWarehou
       className="fixed inset-0 z-50 overflow-y-auto"
     >
       <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity pointer-events-none"></div>
         <span className="hidden sm:inline-block sm:h-screen sm:align-middle">&#8203;</span>
         <motion.div
           initial={{ scale: 0.9 }}

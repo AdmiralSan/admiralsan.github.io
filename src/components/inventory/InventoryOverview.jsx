@@ -9,6 +9,19 @@ const InventoryOverview = () => {
 
   const handleCloseModal = () => setModalContent(null);
 
+  // Escape key handler for modal
+  React.useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        setModalContent(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, []);
+
   const renderModalContent = () => {
     if (!modalContent) return null;
 
@@ -84,6 +97,10 @@ const InventoryOverview = () => {
     );
   };
   
+  // State for value card selection (move above any return/conditional)
+  const [valueView, setValueView] = useState('category'); // 'category' or 'godown'
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
   if (loading) {
     return <p>Loading overview data...</p>;
   }
@@ -91,13 +108,13 @@ const InventoryOverview = () => {
   if (!summary) {
     return <p>No inventory data available.</p>;
   }
-  
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Inventory Overview</h2>
-      
+
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <motion.div 
           className="bg-blue-50 p-6 rounded-lg shadow-sm cursor-pointer"
           whileHover={{ y: -4 }}
@@ -108,7 +125,7 @@ const InventoryOverview = () => {
           <p className="text-3xl font-bold text-blue-900">{summary.totalProducts || 0}</p>
           <p className="text-sm text-blue-600 mt-1">Across all warehouses</p>
         </motion.div>
-        
+
         <motion.div 
           className="bg-green-50 p-6 rounded-lg shadow-sm cursor-pointer"
           whileHover={{ y: -4 }}
@@ -119,14 +136,88 @@ const InventoryOverview = () => {
           <p className="text-3xl font-bold text-green-900">{summary.totalStock || 0}</p>
           <p className="text-sm text-green-600 mt-1">Units in inventory</p>
         </motion.div>
-        
+
+        {/* New Animated Card for Value by Category or Godown */}
+        <motion.div 
+          className="bg-purple-50 p-6 rounded-lg shadow-sm cursor-pointer flex flex-col justify-between"
+          whileHover={{ y: -4 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-purple-800 uppercase">Inventory Value</h3>
+            <div className="flex gap-2 items-center">
+              <select
+                className="text-xs bg-white border border-purple-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                value={valueView}
+                onChange={e => setValueView(e.target.value)}
+              >
+                <option value="category">By Category</option>
+                <option value="godown">By Godown</option>
+              </select>
+              {valueView === 'category' && (
+                <select
+                  className="text-xs bg-white border border-purple-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  value={selectedCategory}
+                  onChange={e => setSelectedCategory(e.target.value)}
+                >
+                  <option value="all">All</option>
+                  {summary.categories && Object.keys(summary.categories).map(cat => (
+                    <option key={cat} value={cat}>{cat || 'Uncategorized'}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col justify-center">
+            {valueView === 'category' ? (
+              <>
+                <p className="text-3xl font-bold text-purple-900">
+                  ₹{
+                    selectedCategory === 'all'
+                      ? (summary.totalValue ? summary.totalValue.toFixed(2) : '0.00')
+                      : (summary.categories && summary.categories[selectedCategory]?.value ? summary.categories[selectedCategory].value.toFixed(2) : '0.00')
+                  }
+                </p>
+                <p className="text-sm text-purple-600 mt-1">
+                  {selectedCategory === 'all' ? 'Total value by category' : `Value for ${selectedCategory || 'Uncategorized'}`}
+                </p>
+                {selectedCategory === 'all' ? (
+                  <ul className="mt-2 space-y-1">
+                    {summary.categories && Object.entries(summary.categories).map(([cat, data]) => (
+                      <li key={cat} className="flex justify-between text-xs">
+                        <span>{cat || 'Uncategorized'}</span>
+                        <span>₹{data.value ? data.value.toFixed(2) : '0.00'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="text-3xl font-bold text-purple-900">
+                  ₹{summary.warehouses && summary.warehouses.reduce((acc, w) => acc + (w.value || 0), 0).toFixed(2)}
+                </p>
+                <p className="text-sm text-purple-600 mt-1">Total value by godown</p>
+                <ul className="mt-2 space-y-1">
+                  {summary.warehouses && summary.warehouses.map(w => (
+                    <li key={w.id} className="flex justify-between text-xs">
+                      <span>{w.name}</span>
+                      <span>₹{w.value ? w.value.toFixed(2) : '0.00'}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </motion.div>
+
         <motion.div 
           className="bg-purple-50 p-6 rounded-lg shadow-sm cursor-pointer"
           whileHover={{ y: -4 }}
           transition={{ duration: 0.2 }}
           onClick={() => setModalContent({ type: 'value', data: summary })}
         >
-          <h3 className="text-sm font-medium text-purple-800 uppercase">Inventory Value</h3>
+          <h3 className="text-sm font-medium text-purple-800 uppercase">Inventory Value (Modal)</h3>
           <p className="text-3xl font-bold text-purple-900">
             ₹{summary.totalValue ? summary.totalValue.toFixed(2) : '0.00'}
           </p>

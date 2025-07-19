@@ -248,7 +248,7 @@ export const getWarehouses = async (options = {}) => {
  */
 export const getWarehouseInventory = async (warehouseId) => {
   try {
-    const { data, error } = await supabase
+    const { data: products, error } = await supabase
       .from('products')
       .select(`
         *,
@@ -260,10 +260,87 @@ export const getWarehouseInventory = async (warehouseId) => {
     
     if (error) throw error;
     
-    return { data, error: null };
+    // Calculate summary statistics
+    const totalProducts = products?.length || 0;
+    const totalVariants = products?.reduce((sum, product) => 
+      sum + (product.product_variants?.length || 0), 0) || 0;
+    const totalStock = products?.reduce((sum, product) => 
+      sum + (product.quantity || 0), 0) || 0;
+    const totalValue = products?.reduce((sum, product) => 
+      sum + ((product.quantity || 0) * (product.price || 0)), 0) || 0;
+    
+    // Calculate stock status counts
+    const inStock = products?.filter(product => (product.quantity || 0) > 0).length || 0;
+    const lowStock = products?.filter(product => {
+      const qty = product.quantity || 0;
+      const reorderLevel = product.reorder_level || 5;
+      return qty > 0 && qty <= reorderLevel;
+    }).length || 0;
+    const outOfStock = products?.filter(product => (product.quantity || 0) <= 0).length || 0;
+    
+    // Group products by category
+    const categories = {};
+    const allVariants = [];
+    
+    products?.forEach(product => {
+      const category = product.category || 'Uncategorized';
+      if (!categories[category]) {
+        categories[category] = {
+          count: 0,
+          stock: 0,
+          value: 0,
+          products: []
+        };
+      }
+      categories[category].count++;
+      categories[category].stock += (product.quantity || 0);
+      categories[category].value += (product.quantity || 0) * (product.price || 0);
+      categories[category].products.push(product);
+      
+      // Extract variants
+      if (product.product_variants && product.product_variants.length > 0) {
+        product.product_variants.forEach(variant => {
+          allVariants.push({
+            ...variant,
+            product_name: product.name,
+            product_id: product.id
+          });
+        });
+      }
+    });
+    
+    return {
+      data: products,
+      variants: allVariants,
+      summary: {
+        totalProducts,
+        totalVariants,
+        totalStock,
+        totalValue,
+        inStock,
+        lowStock,
+        outOfStock
+      },
+      categories,
+      error: null
+    };
   } catch (error) {
     console.error('Error fetching warehouse inventory:', error);
-    return { data: [], error };
+    return { 
+      data: [], 
+      variants: [],
+      summary: {
+        totalProducts: 0,
+        totalVariants: 0,
+        totalStock: 0,
+        totalValue: 0,
+        inStock: 0,
+        lowStock: 0,
+        outOfStock: 0
+      },
+      categories: {},
+      error 
+    };
   }
 };
 
