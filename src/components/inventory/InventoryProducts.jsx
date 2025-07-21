@@ -18,6 +18,8 @@ const InventoryProducts = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
   
   useEffect(() => {
     fetchProducts();
@@ -74,22 +76,57 @@ const InventoryProducts = () => {
     setEditingProduct(product);
   };
 
+  // Delete a single product and its stock movements
   const handleDeleteProduct = async (productId) => {
     try {
+      // Delete related stock_movements first
+      const { error: stockError } = await supabase
+        .from('stock_movements')
+        .delete()
+        .eq('product_id', productId);
+      if (stockError) throw stockError;
+
+      // Now delete the product
       const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', productId);
-
       if (error) throw error;
 
-      // Refresh the products list
       fetchProducts();
       refreshData();
       setShowDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting product:', err);
       setError(`Failed to delete product: ${err.message}`);
+    }
+  };
+
+  // Delete multiple selected products and their stock movements
+  const handleDeleteSelectedProducts = async () => {
+    if (selectedProductIds.length === 0) return;
+    try {
+      // Delete all related stock_movements for selected products
+      const { error: stockError } = await supabase
+        .from('stock_movements')
+        .delete()
+        .in('product_id', selectedProductIds);
+      if (stockError) throw stockError;
+
+      // Delete the products
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', selectedProductIds);
+      if (error) throw error;
+
+      setSelectedProductIds([]);
+      setSelectAll(false);
+      fetchProducts();
+      refreshData();
+    } catch (err) {
+      console.error('Error deleting products:', err);
+      setError(`Failed to delete selected products: ${err.message}`);
     }
   };
 
@@ -201,6 +238,25 @@ const InventoryProducts = () => {
     );
   }
   
+  // Checkbox handlers
+  const handleSelectProduct = (productId) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedProductIds([]);
+      setSelectAll(false);
+    } else {
+      setSelectedProductIds(filteredProducts.map((p) => p.id));
+      setSelectAll(true);
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -255,6 +311,17 @@ const InventoryProducts = () => {
         </div>
       </div>
       
+      {/* Bulk delete button */}
+      {selectedProductIds.length > 0 && (
+        <div className="mb-4 flex justify-end">
+          <button
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            onClick={handleDeleteSelectedProducts}
+          >
+            Delete Selected ({selectedProductIds.length})
+          </button>
+        </div>
+      )}
       {filteredProducts.length === 0 ? (
         <div className="text-center py-8 bg-gray-50 rounded-lg">
           <p className="text-gray-500">No products found matching your filters.</p>
@@ -264,6 +331,13 @@ const InventoryProducts = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    onChange={handleSelectAll}
+                  />
+                </th>
                 <th 
                   scope="col" 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -319,6 +393,13 @@ const InventoryProducts = () => {
                   key={product.id}
                   className="hover:bg-gray-50 transition-colors"
                 >
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.includes(product.id)}
+                      onChange={() => handleSelectProduct(product.id)}
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{product.name}</div>
                   </td>
@@ -329,7 +410,7 @@ const InventoryProducts = () => {
                     <div className="text-sm text-gray-500">{product.category || 'Uncategorized'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${product.price?.toFixed(2) || '0.00'}</div>
+                    <div className="text-sm text-gray-900">₹{product.price?.toFixed(2) || '0.00'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{product.quantity || 0}</div>

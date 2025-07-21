@@ -80,7 +80,6 @@ const WarehouseInventoryView = ({ warehouse, onClose }) => {
       className="fixed inset-0 z-50 overflow-y-auto"
     >
       <div className="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
         <span className="hidden sm:inline-block sm:h-screen sm:align-middle">&#8203;</span>
         <motion.div
           initial={{ scale: 0.9 }}
@@ -162,7 +161,7 @@ const WarehouseInventoryView = ({ warehouse, onClose }) => {
                     <p className="font-bold">Error</p>
                     <p>{error}</p>
                   </div>
-                ) : inventory ? (
+                ) : inventory && inventory.summary ? (
                   <div className="mt-6">
                     {/* Summary Tab */}
                     {activeTab === 'summary' && (
@@ -170,22 +169,22 @@ const WarehouseInventoryView = ({ warehouse, onClose }) => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                           <div className="bg-blue-50 p-4 rounded-lg">
                             <h4 className="text-sm font-medium text-blue-800">Total Products</h4>
-                            <p className="text-2xl font-semibold text-blue-900">{inventory.summary.totalProducts}</p>
+                            <p className="text-2xl font-semibold text-blue-900">{inventory.summary.totalProducts || 0}</p>
                           </div>
                           <div className="bg-green-50 p-4 rounded-lg">
                             <h4 className="text-sm font-medium text-green-800">Total Variants</h4>
-                            <p className="text-2xl font-semibold text-green-900">{inventory.summary.totalVariants}</p>
+                            <p className="text-2xl font-semibold text-green-900">{inventory.summary.totalVariants || 0}</p>
                           </div>
                           <div className="bg-purple-50 p-4 rounded-lg">
                             <h4 className="text-sm font-medium text-purple-800">Total Stock</h4>
-                            <p className="text-2xl font-semibold text-purple-900">{inventory.summary.totalStock}</p>
+                            <p className="text-2xl font-semibold text-purple-900">{inventory.summary.totalStock || 0}</p>
                           </div>
                         </div>
 
                         <h4 className="text-lg font-medium mb-3">Category Breakdown</h4>
                         <div className="bg-white shadow overflow-hidden rounded-md">
                           <ul className="divide-y divide-gray-200">
-                            {Object.entries(inventory.categories).map(([category, data]) => (
+                            {inventory.categories && Object.entries(inventory.categories).map(([category, data]) => (
                               <li key={category} className="px-6 py-4 flex items-center justify-between">
                                 <div className="font-medium text-gray-900">{category}</div>
                                 <div className="text-sm">
@@ -227,8 +226,8 @@ const WarehouseInventoryView = ({ warehouse, onClose }) => {
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {inventory.products.length > 0 ? (
-                              inventory.products.map((product) => (
+                            {inventory.data && inventory.data.length > 0 ? (
+                              inventory.data.map((product) => (
                                 <tr key={product.id}>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-gray-900">{product.name}</div>
@@ -292,12 +291,12 @@ const WarehouseInventoryView = ({ warehouse, onClose }) => {
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {inventory.variants.length > 0 ? (
+                            {inventory.variants && inventory.variants.length > 0 ? (
                               inventory.variants.map((variant) => (
                                 <tr key={variant.id}>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-gray-900">
-                                      {variant.products?.name || 'Unknown Product'}
+                                      {variant.product_name || 'Unknown Product'}
                                     </div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">

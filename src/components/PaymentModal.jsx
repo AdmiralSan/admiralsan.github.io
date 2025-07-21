@@ -18,7 +18,17 @@ const PaymentModal = ({ invoice, onClose, onPaymentComplete }) => {
       setAmountPaid(invoice.amount_paid || 0);
       setRemainingAmount(invoice.total_amount - (invoice.amount_paid || 0));
     }
-  }, [invoice]);
+    // Escape key handler
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [invoice, onClose]);
   
   // Handle amount paid change
   const handleAmountChange = (e) => {

@@ -12,6 +12,7 @@ const initialForm = {
   sku: '',
   category: '',
   price: '',
+  purchase_price: '',
   quantity: '',
   description: '',
   supplier_id: '',
@@ -121,6 +122,7 @@ const ProductForm = ({ onProductAdded }) => {
             // Find the category name if we're using the ID
             category: categories.find(c => c.id === formData.category)?.name || formData.category,
             price: parseFloat(formData.price),
+            purchase_price: parseFloat(formData.purchase_price),
             quantity: parseInt(formData.quantity),
             reorder_level: parseInt(formData.reorder_level)
           }
@@ -264,7 +266,8 @@ const ProductForm = ({ onProductAdded }) => {
             {renderField({ label: 'Product Name', name: 'name', type: 'text', required: true })}
             {renderField({ label: 'SKU', name: 'sku', type: 'text', required: true })}
             {renderField({ label: 'Category', name: 'category', type: 'select', required: true })}
-            {renderField({ label: 'Price ($)', name: 'price', type: 'number', step: '0.01', required: true })}
+            {renderField({ label: 'Selling Price ($)', name: 'price', type: 'number', step: '0.01', required: true })}
+            {renderField({ label: 'Purchase Price ($)', name: 'purchase_price', type: 'number', step: '0.01', required: true })}
           </div>
         </div>
 

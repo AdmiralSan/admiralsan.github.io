@@ -188,17 +188,32 @@ const ProductList = ({ onProductAdded }) => {
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div className="flex items-center">
             <h2 className="text-xl font-semibold text-slate-800 tracking-tight mr-4">Product List</h2>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg px-4 py-2 text-sm flex items-center transition-colors"
-              onClick={() => setShowAddProductModal(true)}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add New Product
-            </motion.button>
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg px-4 py-2 text-sm flex items-center transition-colors"
+                onClick={() => setShowAddProductModal(true)}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add New Product
+              </motion.button>
+              <div className="relative group">
+                <button
+                  onClick={() => setShowCategoryManager(true)}
+                  className="p-2 border border-slate-200 bg-white text-green-700 rounded-md hover:bg-green-50 hover:border-green-400 flex items-center transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
+                  title="Edit Categories"
+                  style={{ minWidth: 0, height: '40px' }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v4a2 2 0 002 2h2m4 0h2a2 2 0 002-2V7m-6 4V7m0 0V5a2 2 0 012-2h0a2 2 0 012 2v2" />
+                  </svg>
+                </button>
+                <span className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 rounded bg-slate-800 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 transition-opacity duration-200">Edit Categories</span>
+              </div>
+            </div>
           </div>
           <input
             type="text"
@@ -229,15 +244,6 @@ const ProductList = ({ onProductAdded }) => {
                   </option>
                 ))}
               </select>
-              <button
-                onClick={() => setShowCategoryManager(true)}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-                title="Manage Categories"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </button>
             </div>
           </div>
           

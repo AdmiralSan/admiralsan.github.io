@@ -251,6 +251,9 @@ const PendingInvoiceDetail = ({ invoice, onClose, onPaymentComplete, onEditInvoi
                           {item.serial_number && (
                             <div className="text-xs text-gray-500">S/N: {item.serial_number}</div>
                           )}
+                          {typeof item.products?.purchase_price !== 'undefined' && (
+                            <div className="text-xs text-blue-500 mt-1">Purchase Price: {formatCurrency(item.products.purchase_price)}</div>
+                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-900">

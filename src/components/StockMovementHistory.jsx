@@ -12,7 +12,42 @@ const StockMovementHistory = () => {
   const [products, setProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
   const movementsPerPage = 10;
+  // Checkbox handlers
+  const handleSelectMovement = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedIds([]);
+      setSelectAll(false);
+    } else {
+      setSelectedIds(filteredMovements.map((m) => m.id));
+      setSelectAll(true);
+    }
+  };
+
+  // Delete selected movements
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      const { error } = await supabase
+        .from('stock_movements')
+        .delete()
+        .in('id', selectedIds);
+      if (error) throw error;
+      setSelectedIds([]);
+      setSelectAll(false);
+      fetchMovements();
+    } catch (err) {
+      setError('Failed to delete selected stock movements: ' + err.message);
+    }
+  };
 
   useEffect(() => {
     fetchProducts();
@@ -133,6 +168,17 @@ const StockMovementHistory = () => {
         </div>
       </div>
 
+      {/* Bulk delete button */}
+      {selectedIds.length > 0 && (
+        <div className="mb-4 flex justify-end">
+          <button
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            onClick={handleDeleteSelected}
+          >
+            Delete Selected ({selectedIds.length})
+          </button>
+        </div>
+      )}
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <motion.div
@@ -166,6 +212,13 @@ const StockMovementHistory = () => {
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50">
                   <tr>
+                    <th className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectAll}
+                        onChange={handleSelectAll}
+                      />
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                       Date
                     </th>
@@ -193,6 +246,13 @@ const StockMovementHistory = () => {
                       whileHover={{ scale: 1.01, boxShadow: '0 2px 16px 0 rgba(37,99,235,0.08)' }}
                       className="transition-all"
                     >
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(movement.id)}
+                          onChange={() => handleSelectMovement(movement.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                         {formatTimestamp(movement.created_at)}
                       </td>
